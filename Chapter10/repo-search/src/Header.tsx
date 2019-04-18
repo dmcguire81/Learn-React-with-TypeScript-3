@@ -1,6 +1,6 @@
 import React from "react";
-import axios from "axios";
-import ApiConf from "./config";
+import gql from "graphql-tag";
+import { Query } from "react-apollo";
 
 interface IViewer {
     name: string;
@@ -8,46 +8,45 @@ interface IViewer {
 }
 
 interface IQueryResult {
-    data: {
-        viewer: IViewer;
-    };
+    viewer: IViewer;
 }
 
+const GET_VIEWER = gql`
+  {
+    viewer {
+      name
+      avatarUrl
+    }
+  }
+`;
+
+class GetViewerQuery extends Query<IQueryResult> {}
+
 export const Header: React.SFC = () => {
-    const [viewer, setViewer]: [
-        IViewer,
-        (viewer: IViewer) => void
-    ] = React.useState({name: "", avatarUrl: ""});
-
-    React.useEffect(() => {
-        axios
-            .post<IQueryResult>(
-                "https://api.github.com/graphql",
-                {
-                    query: `query { 
-                        viewer { 
-                            name
-                            avatarUrl
-                        }
-                        }`
-                },
-                {
-                    headers: {
-                        Authorization: `bearer ${ApiConf.bearerToken}`
-                    }
-                }
-            ).then(response => {
-                setViewer(response.data.data.viewer);
-            });
-        },
-    []);
-
     return (
-        <div>
-            <img src={viewer.avatarUrl} className="avatar" />
-            <div className="viewer">{viewer.name}</div>
-            <h1>GitHub Search</h1>
-        </div>
+        <GetViewerQuery query={GET_VIEWER}>
+            {({ data, loading, error }) => {
+                if (loading) {
+                    return <div className="viewer">Loading ...</div>;
+                }
+
+                if (error) {
+                    return <div className="viewer">{error.toString()}</div>;
+                }
+
+                if (!data || !data.viewer) {
+                    return null;
+                }
+
+                return (
+                    <div>
+                    <img src={data.viewer.avatarUrl} className="avatar" />
+                    <div className="viewer">{data.viewer.name}</div>
+                    <h1>GitHub Search</h1>
+                    </div>
+                );
+            }}
+        </GetViewerQuery>
     );
 };
 
